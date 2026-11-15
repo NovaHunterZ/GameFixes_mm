@@ -2,7 +2,7 @@
  * vim: set ts=4 sw=4 tw=99 noet:
  * =============================================================================
  * GameFixes_mm
- * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
+ * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -18,16 +18,16 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
- *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
+ *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
  *
  * Project: GameFixes_mm
  */
 
 #include "rampbug.h"
 
-#include "sdk/navlib/navphysicsinterface.h"
-#include "sdk/schema/classes/CBasePlayerPawn.h"
-#include "sdk/schema/classes/CCSPlayer_MovementServices.h"
+#include "sdk/schema/CBasePlayerPawn.h"
+#include "sdk/schema/CCSPlayer_MovementServices.h"
+#include "sdk/INavPhysicsInterface.h"
 #include "vprof.hpp"
 
 #include <const.h>

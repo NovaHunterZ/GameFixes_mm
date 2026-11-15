@@ -1,0 +1,165 @@
+# vim: set sts=2 ts=8 sw=2 tw=99 et ft=python:
+#
+# Buildable standalone (configure.py + ambuild), or as a sub-build from
+# another project's own AMBuildScript, the same way metamod-source pulls in
+# versionlib/AMBuildScript:
+#
+#   DynLibUtilsLib = builder.Build('vendor/dynlibutils/AMBuildScript', {})
+#   binary.compiler.cxxincludes += [os.path.join(builder.sourcePath, 'vendor', 'dynlibutils', 'include')]
+#   binary.compiler.linkflags += [DynLibUtilsLib[cxx.target.arch]]
+import os, sys
+
+class DynLibUtilsConfig(object):
+  def __init__(self):
+    self.all_targets = []
+    self.binaries_by_arch = {}
+
+    if builder.options.targets:
+      target_archs = builder.options.targets.split(',')
+    else:
+      target_archs = ['x86_64']
+
+    for arch in target_archs:
+      try:
+        cxx = builder.DetectCxx(target_arch=arch)
+      except Exception as e:
+        if builder.options.targets:
+          raise
+        print('Skipping target {}: {}'.format(arch, e))
+        continue
+      self.all_targets.append(cxx)
+
+    if not self.all_targets:
+      raise Exception('No suitable C/C++ compiler was found.')
+
+  def configure(self):
+    for cxx in self.all_targets:
+      self.configure_cxx(cxx)
+
+  def configure_cxx(self, cxx):
+    if cxx.behavior == 'gcc':
+      cxx.cflags += [
+        '-pipe',
+        '-fno-strict-aliasing',
+        '-Wall',
+        '-Wno-uninitialized',
+        '-Wno-unused',
+        '-Wno-switch',
+        '-Wno-invalid-offsetof',
+        '-msse',
+        '-fPIC',
+      ]
+      cxx.cxxflags += [
+        '-std=c++20',
+        '-frtti',
+        '-fno-threadsafe-statics',
+        '-fvisibility=hidden',
+        '-fvisibility-inlines-hidden',
+        '-Wno-non-virtual-dtor',
+        '-Wno-overloaded-virtual',
+      ]
+      if cxx.family == 'gcc':
+        cxx.cflags += ['-mfpmath=sse']
+      if cxx.family == 'clang':
+        cxx.cxxflags += ['-Wno-implicit-exception-spec-mismatch']
+
+      # ABI parity with whatever links this static lib in: on Linux, the
+      # CS2 HL2SDK manifest (hl2sdk-manifests/manifests/cs2.json) forces
+      # _GLIBCXX_USE_CXX11_ABI=0 (the pre-C++11 std::string/std::vector
+      # layout) onto every consumer plugin's own translation units via
+      # SdkHelpers.configureCxx(). This standalone sub-build never touches
+      # that manifest, so without this define it silently defaults to the
+      # modern (=1) ABI instead -- meaning CModule (which embeds
+      # std::string/std::vector members) gets a genuinely different
+      # sizeof/layout in libdynlibutils.a than in the plugin's own
+      # plugin.cpp/InventoryManager.cpp. A caller allocates stack space for
+      # a CModule sized by ITS OWN (ABI0) layout, but the constructor that
+      # actually runs (compiled into this lib with ABI1 layout) writes a
+      # different-sized/different-offset object into it -- silently
+      # corrupting whatever follows on the stack. This is exactly what
+      # produced the CModule::~CModule crash in Plugin::Load: confirmed by
+      # rebuilding with dynlibutils/module.cpp compiled directly into the
+      # plugin (uniform ABI, single flag set) instead of as this separate
+      # static lib, which made the crash disappear. Matches this repo's own
+      # CMakeLists.txt/cmake/platform/linux.cmake (upstream Wend4r/
+      # cpp-dynlibutils defaults DYNLIBUTILS_USE_ABI0 to ON) and this
+      # plugin's makefiles/linux.base.cmake, which both already set this.
+      if cxx.target.platform == 'linux':
+        cxx.defines += ['_GLIBCXX_USE_CXX11_ABI=0']
+
+    elif cxx.like('msvc'):
+      if builder.options.debug == '1':
+        cxx.cflags += ['/MTd']
+        cxx.linkflags += ['/NODEFAULTLIB:libcmt']
+      else:
+        cxx.cflags += ['/MT']
+      cxx.defines += [
+        '_CRT_SECURE_NO_DEPRECATE',
+        '_CRT_SECURE_NO_WARNINGS',
+        '_CRT_NONSTDC_NO_DEPRECATE',
+      ]
+      cxx.cflags += [
+        '/W3',
+        '/Zi',
+        '/EHsc',
+        '/std:c++20',
+      ]
+      cxx.cxxflags += ['/TP']
+
+    # Optimization
+    if builder.options.opt == '1':
+      cxx.defines += ['NDEBUG']
+      if cxx.behavior == 'gcc':
+        cxx.cflags += ['-O3']
+      elif cxx.behavior == 'msvc':
+        cxx.cflags += ['/Ox', '/Zo']
+        cxx.linkflags += ['/OPT:ICF', '/OPT:REF']
+
+    # Debugging
+    if builder.options.debug == '1':
+      cxx.defines += ['DEBUG', '_DEBUG']
+      if cxx.behavior == 'gcc':
+        cxx.cflags += ['-g3']
+      elif cxx.behavior == 'msvc':
+        cxx.cflags += ['/Od', '/RTC1']
+
+    if cxx.behavior == 'gcc':
+      cxx.cflags += ['-fno-omit-frame-pointer']
+    elif cxx.behavior == 'msvc':
+      cxx.cflags += ['/Oy-']
+
+    # Platform-specifics
+    if cxx.target.platform == 'linux':
+      cxx.defines += ['_LINUX', 'LINUX', 'POSIX', '_FILE_OFFSET_BITS=64']
+    elif cxx.target.platform == 'windows':
+      cxx.defines += ['WIN32', '_WINDOWS']
+
+  def build(self):
+    for cxx in self.all_targets:
+      lib = cxx.StaticLibrary('dynlibutils')
+
+      # builder.sourcePath is always the OUTERMOST project's root (a fixed
+      # property on every context, see ambuild2's BaseContext.sourcePath),
+      # not this repo's own directory when built as a sub-build --
+      # builder.currentSourcePath is the one that correctly rebases per
+      # context. Masked when building this repo standalone (the two happen
+      # to coincide there).
+      lib.compiler.cxxincludes += [
+        os.path.join(builder.currentSourcePath, 'include'),
+      ]
+
+      lib.sources += [
+        os.path.join('src', 'module.cpp'),
+      ]
+
+      node = builder.Add(lib)
+      self.binaries_by_arch[cxx.target.arch] = node.binary
+
+config = DynLibUtilsConfig()
+config.configure()
+config.build()
+
+# What a parent build (builder.Build('vendor/dynlibutils/AMBuildScript', {}))
+# gets back -- a dict of {arch: compiled libdynlibutils path}, same
+# convention as metamod-source's own versionlib/AMBuildScript.
+rvalue = config.binaries_by_arch

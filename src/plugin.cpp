@@ -2,7 +2,7 @@
  * vim: set ts=4 sw=4 tw=99 noet:
  * =============================================================================
  * GameFixes_mm
- * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
+ * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -18,7 +18,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
- *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
+ *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
  *
  * Project: GameFixes_mm
  */
@@ -39,6 +39,7 @@
 #include "fixes/team_limit.h"
 #include "fixes/voice_flood.h"
 #include "fixes/water_jump.h"
+#include "fixes/workshop_voice.h"
 #include "scheduler.h"
 #include <engine2/gamesessionconfiguration.h>
 #include "utils.hpp"
@@ -184,6 +185,7 @@ std::vector<std::unique_ptr<CFix>> Plugin::CreateFixes()
     fixes.push_back(std::make_unique<CDemoRecordFix>());
     fixes.push_back(std::make_unique<CHammerIdFix>());
     fixes.push_back(std::make_unique<CSlowAnimationFix>());
+    fixes.push_back(std::make_unique<CWorkshopVoiceFix>());
     fixes.push_back(std::make_unique<CSteamBanFix>());
     fixes.push_back(std::make_unique<CTeamLimitFix>());
     fixes.push_back(std::make_unique<CInputActivatorCrashFix>());
@@ -283,7 +285,7 @@ const char* Plugin::GetLicense() { return "GPLv3"; }
 const char* Plugin::GetVersion() { return VERSION_STRING; }
 const char* Plugin::GetDate() { return BUILD_TIMESTAMP; }
 const char* Plugin::GetLogTag() { return "GameFixes"; }
-const char* Plugin::GetAuthor() { return reinterpret_cast<const char*>(u8"Slynx (˙·٠● S l y n x ●٠·˙)"); }
-const char* Plugin::GetDescription() { return "CS2 server fixes, each toggled in game_fixes.ini"; }
-const char* Plugin::GetName() { return "Game Fixes"; }
-const char* Plugin::GetURL() { return "https://slynxdev.cz"; }
+const char* Plugin::GetAuthor() { return reinterpret_cast<const char*>(u8"Slynx (˙·٠● S l y n x ●٠·˙), maintained by NovaHunters"); }
+const char* Plugin::GetDescription() { return "CS2 server fixes, each toggled in game_fixes.ini (NovaHunters fork of GameFixes_mm)"; }
+const char* Plugin::GetName() { return "NH Game Fixes"; }
+const char* Plugin::GetURL() { return "https://github.com/NovaHunterZ/GameFixes_mm"; }

@@ -2,7 +2,7 @@
  * vim: set ts=4 sw=4 tw=99 noet:
  * =============================================================================
  * GameFixes_mm
- * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
+ * Copyright (C) 2026 Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -18,7 +18,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Authors:
- *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
+ *   - Michal "Slynx (˙·٠● S l y n x ●٠·˙)" Přikryl
  *
  * Project: GameFixes_mm
  */
@@ -122,6 +122,11 @@ namespace scheduler
 
         double now = std::chrono::duration_cast<std::chrono::duration<double>>(
             std::chrono::steady_clock::now().time_since_epoch()).count();
+
+        // First tick: there is no previous tick to measure from. Without this the clock jumped ahead by the
+        // machine's whole uptime and every timer fired once right at startup (slow_animation reloaded the map).
+        if (s_dLastTickTime == 0.0)
+            s_dLastTickTime = now;
 
         if (simulating)
             g_dUniversalTime += now - s_dLastTickTime;
