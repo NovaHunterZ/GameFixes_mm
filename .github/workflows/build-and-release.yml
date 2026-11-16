@@ -1,0 +1,176 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      base_version: ${{ steps.get_version.outputs.base_version }}
+      release_tag: ${{ steps.get_version.outputs.release_tag }}
+      is_prerelease: ${{ steps.get_version.outputs.is_prerelease }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version and release tag
+        id: get_version
+        run: |
+          BASE_VERSION=$(grep -oP 'SEMVER="\$\{SEMVER:-\K[^}]+' build.sh | head -n1)
+          if [ -z "$BASE_VERSION" ]; then
+            BASE_VERSION="v1.0.0-nh"
+          fi
+          echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
+
+          RELEASE_TAG="$BASE_VERSION"
+          IS_PRERELEASE="false"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if git rev-parse "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+              IS_PRERELEASE="true"
+              N=1
+              while git rev-parse "refs/tags/${BASE_VERSION}-prerelease${N}" >/dev/null 2>&1; do
+                N=$((N + 1))
+              done
+              RELEASE_TAG="${BASE_VERSION}-prerelease${N}"
+            fi
+          fi
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
+
+  build-linux:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap curl git tar
+
+      - name: Build Linux plugin
+        env:
+          SEMVER: ${{ needs.version.outputs.release_tag }}
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Package Linux artifact
+        run: |
+          mkdir -p upload
+          cp -r dist/addons upload/
+          tar -czf "GameFixes_mm-linux-${{ needs.version.outputs.release_tag }}.tar.gz" -C upload addons
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameFixes_mm-linux-${{ needs.version.outputs.release_tag }}
+          path: GameFixes_mm-linux-${{ needs.version.outputs.release_tag }}.tar.gz
+
+  build-windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone SDK dependencies
+        shell: pwsh
+        run: |
+          mkdir .deps -Force | Out-Null
+          git clone --depth 1 --branch cs2 https://github.com/alliedmodders/s2sdk.git .deps/s2sdk
+          git clone --depth 1 --branch master --recursive --shallow-submodules https://github.com/alliedmodders/metamod-source.git .deps/metamod-source
+          git clone --depth 1 --branch master https://github.com/Source2Mod/s2sdk-manifests.git .deps/s2sdk-manifests
+
+      - name: Configure and build Windows plugin
+        shell: pwsh
+        env:
+          MMSOURCE_DEV: ${{ github.workspace }}\.deps\metamod-source
+          S2SDK: ${{ github.workspace }}\.deps\s2sdk
+          S2SDK_MANIFESTS_DIR: ${{ github.workspace }}\.deps\s2sdk-manifests
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DSEMVER="${{ needs.version.outputs.release_tag }}"
+          cmake --build build --config Release --parallel
+          cmake --install build --config Release --prefix dist
+
+      - name: Package Windows artifact
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\addons -DestinationPath "GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}.zip" -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}
+          path: GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}.zip
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [version, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          {
+            echo "## Changelog"
+            echo ""
+            echo "| Commit | Change Description | Author |"
+            echo "| :--- | :--- | :--- |"
+            git log "$RANGE" --no-merges --pretty=format:'%h|%H|%s|%an' | while IFS='|' read -r short_hash full_hash subject author; do
+              gh_login=$(gh api "repos/${{ github.repository }}/commits/${full_hash}" --jq '.author.login // empty' 2>/dev/null || true)
+              if [ -n "$gh_login" ]; then
+                author_col="[@${gh_login}](https://github.com/${gh_login})"
+              else
+                author_col="${author}"
+              fi
+              subject_escaped=$(printf '%s' "$subject" | sed 's/|/\\|/g')
+              echo "| [\`${short_hash}\`](https://github.com/${{ github.repository }}/commit/${full_hash}) | ${subject_escaped} | ${author_col} |"
+            done
+          } > release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.release_tag }}
+          name: ${{ needs.version.outputs.release_tag }}
+          prerelease: ${{ needs.version.outputs.is_prerelease == 'true' }}
+          body_path: release_notes.md
+          files: |
+            artifacts/GameFixes_mm-linux-${{ needs.version.outputs.release_tag }}.tar.gz
+            artifacts/GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}.zip

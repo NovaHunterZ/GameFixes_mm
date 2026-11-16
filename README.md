@@ -1,7 +1,7 @@
 # NH_GameFixes
 
 A Metamod:Source plugin that bundles a set of CS2 server fixes. This is the NovaHunters fork of
-[SlynxCZ/GameFixes_mm](https://github.com/SlynxCZ/GameFixes_mm), kept working on current CS2 builds.
+[SlynxCZ/GameFixes_mm](https://github.com/SlynxCZ/GameFixes_mm), maintained by **SyntX** and **Denied** for the **Nova Zombie Community** to keep it working on current CS2 builds.
 
 Repo: [github.com/NovaHunterZ/GameFixes_mm](https://github.com/NovaHunterZ/GameFixes_mm)
 
