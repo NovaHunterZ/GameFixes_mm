@@ -21,7 +21,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPS="${GAMEFIXES_DEPS:-$ROOT/.deps}"
 BUILD="$DEPS/build"
 RT="$DEPS/steamrt-sniper"
-SEMVER="${SEMVER:-v1.0.20-nh}"
+SEMVER="${SEMVER:-v1.0.21-nh}"
 
 S2SDK_URL="https://github.com/alliedmodders/s2sdk.git"            # branch cs2
 MMS_URL="https://github.com/alliedmodders/metamod-source.git"      # master, carries KHook
