@@ -109,12 +109,11 @@ jobs:
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSEMVER="${{ needs.version.outputs.release_tag }}"
           cmake --build build --parallel
-          cmake --install build --prefix dist
 
       - name: Package Windows artifact
         shell: pwsh
         run: |
-          Compress-Archive -Path dist\addons -DestinationPath "GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}.zip" -Force
+          Compress-Archive -Path build\addons -DestinationPath "GameFixes_mm-windows-${{ needs.version.outputs.release_tag }}.zip" -Force
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
