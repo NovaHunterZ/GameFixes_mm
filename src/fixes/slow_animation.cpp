@@ -42,7 +42,7 @@ void CSlowAnimationFix::ReadConfig(KeyValues* pConfig)
 {
     m_flReloadInterval = pConfig->GetFloat("reload_interval", 1800.0f);
 
-    // Anything shorter would just keep flipping the map around.
+    /* Anything shorter would just keep flipping the map around. */
     if (m_flReloadInterval < 60.0f)
         m_flReloadInterval = 60.0f;
 }
@@ -76,7 +76,7 @@ void CSlowAnimationFix::OnStartupServer(const GameSessionConfiguration_t& config
     const float flRemaining = m_flPendingTimelimit;
     m_flPendingTimelimit = -1.0f;
 
-    // The map's own cfg runs after StartupServer and would overwrite the value; one frame later is past that.
+    /* The map's own cfg runs after StartupServer and would overwrite the value; one frame later is past that. */
     scheduler::NextFrame([this, flRemaining]()
     {
         if (!m_timelimit || !m_timelimit->IsValidRef())

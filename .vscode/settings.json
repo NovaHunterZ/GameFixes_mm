@@ -1,3 +1,30 @@
 {
-  "editor.formatOnSave": false
+  "editor.formatOnSave": false,
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "C_Cpp.default.cppStandard": "c++20",
+  "C_Cpp.default.cStandard": "c17",
+  "C_Cpp.default.intelliSenseMode": "windows-msvc-x64",
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/vendor/dynlibutils/include",
+    "${workspaceFolder}/.deps/s2sdk/public",
+    "${workspaceFolder}/.deps/s2sdk/public/tier0",
+    "${workspaceFolder}/.deps/s2sdk/public/tier1",
+    "${workspaceFolder}/.deps/metamod-source/core"
+  ],
+  "C_Cpp.default.defines": [
+    "COMPILER_MSVC",
+    "WIN32",
+    "_WIN32"
+  ],
+  "cmake.configureOnOpen": false,
+  "files.exclude": {
+    "**/.deps": true,
+    "**/build": true,
+    "**/dist": true
+  }
 }
