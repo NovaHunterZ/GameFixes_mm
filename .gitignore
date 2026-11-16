@@ -15,3 +15,16 @@ configs/addons/metamod/*.vdf
 # build.sh: SDK checkouts + Steam Runtime rootfs, and the packaged output
 /.deps/
 /dist/
+
+# VS Code (keep shared settings.json)
+.vscode/*
+!.vscode/settings.json
+
+# OS / Editor / Build artifacts
+.DS_Store
+Thumbs.db
+*.user
+*.suo
+*.log
+*.tmp
+
