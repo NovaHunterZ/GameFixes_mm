@@ -114,19 +114,18 @@ void CSlowAnimationFix::OnReloadTimer()
         Log("timelimit %.1f min, elapsed %.1f min -> restoring %.1f min after the reload", flTimelimit, flElapsedMinutes, m_flPendingTimelimit);
     }
 
+    char szCommand[320];
     if (g_pEngineServer->IsMapValid(m_szMap))
     {
-        Log("server empty -> ChangeLevel('%s')", m_szMap);
-        g_pEngineServer->ChangeLevel(m_szMap, nullptr);
+        V_snprintf(szCommand, sizeof(szCommand), "changelevel %s", m_szMap);
     }
     else
     {
-        // Not a stock map -> a workshop one, which only changelevels by id.
-        char szCommand[320];
+        /* Not a stock map -> a workshop one, which only changelevels by id. */
         V_snprintf(szCommand, sizeof(szCommand), "ds_workshop_changelevel %s", m_szMap);
-        Log("server empty -> '%s'", szCommand);
-        g_pEngineServer->ServerCommand(szCommand);
     }
+    Log("server empty -> '%s'", szCommand);
+    g_pEngineServer->ServerCommand(szCommand);
 }
 
 int CSlowAnimationFix::CountHumanPlayers() const
